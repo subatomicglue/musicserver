@@ -1,7 +1,7 @@
 # musicserver
 Simple nodejs / express music browser
 
-## Install NodeJS 8
+## Install NodeJS
 Please [install NodeJS](https://www.google.com/search?source=hp&ei=xyckW_uXKsPEjwTq0rmICQ&q=install+nodejs&oq=install+nodejs&gs_l=psy-ab.3..0j0i131k1j0l8.875.2417.0.2504.14.9.0.0.0.0.368.837.0j3j0j1.4.0....0...1.1.64.psy-ab..10.4.836....0.jDCQmP_OFK4).   I recommend installing NVM first, and then using THAT to install (and manage your version of) NodeJS.
 
 On Mac:
