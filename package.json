@@ -1,0 +1,15 @@
+{
+  "name": "musicserve",
+  "version": "1.0.0",
+  "description": "serve a directory of audio files, with media play controls",
+  "main": "app.js",
+  "scripts": {
+    "start": "node_modules/.bin/nodemon serve app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.3"
+  }
+}
