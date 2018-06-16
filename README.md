@@ -42,7 +42,6 @@ Security is super primitive, consiting of a single accesstoken.  Change the toke
 
 ## TODO
 Lots!
-- move customizations (token and music mount) to a config file or .env file
 - add a browser based HTML5 music player instead of launching mp3 in browser
 - support "play all in directory"
 

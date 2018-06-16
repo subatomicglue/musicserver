@@ -6,6 +6,7 @@ const app = express();
 const path    = require("path");
 const fs = require("fs");
 const url = require('url');
+const config = require("./config.json");
 
 function isDir( p ) {
    return fs.lstatSync(p).isDirectory()
@@ -17,8 +18,9 @@ function exists( p ){ return fs.existsSync( p ); }
 
 //app.get('/', (req, res) => res.send('Hello World!'))
 
-const local_music_mount = `/Volumes/music/`;
-const token="KAJSDKFLJASdfkljdsalkfjQRFANkl43n5CmjSDNFJFBFJSK7897348659hjk23ghj342k5g234uib5g43uv532gj";
+const local_music_mount = config.local_music_mount;
+const token = config.token;
+const port = config.port;
 
 app.get('/:path?',function(req,res){
    let req_url = url.parse(req.url).pathname;
@@ -68,4 +70,11 @@ app.get('/:path?',function(req,res){
 
 
 
+console.log( `Welcome` );
+console.log( `Serving: ${local_music_mount}` );
+console.log( `Token:   ${token}` );
+console.log( `URL:     /?token=${token}` );
+console.log( `Port:    ${config.port}` );
+
 app.listen(3000, () => console.log('MusicServer listening on port 3000!'))
+
