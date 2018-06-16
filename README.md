@@ -42,6 +42,6 @@ Security is super primitive, consiting of a single accesstoken.  Change the toke
 
 ## TODO
 Lots!
-- add a browser based HTML5 music player instead of launching mp3 in browser
+- make browser based HTML5 music player pretty (show song pointer, transport controlls, etc)
 - support "play all in directory"
 

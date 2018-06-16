@@ -23,6 +23,7 @@ const token = config.token;
 const port = config.port;
 
 app.get('/:path?',function(req,res){
+   let origin = url.parse(req.url).origin;
    let req_url = url.parse(req.url).pathname;
    let req_url_decode = decodeURI( req_url );
    let req_path = req.params.path;
@@ -31,6 +32,7 @@ app.get('/:path?',function(req,res){
    console.log( ` - URL: ${req_url}` );
    //let given_token = req.headers['Authorization'];
    let given_token = req.query.token;
+   let given_token_uri = encodeURIComponent(given_token);
 
    if (given_token != token) {
       return res.status(401).send(`401 access denied`);
@@ -49,18 +51,83 @@ app.get('/:path?',function(req,res){
          })
          let page = folder.map( file => {
             if (isDir(file.fullpath))
-               return `<a href="${file.urlpath}?token=${req.query.token}">${file.filename}</a><BR>\n`
-            else
-               return `<a href="${file.urlpath}?token=${req.query.token}">${file.filename}</a><BR>\n`
+               return `<a href="${file.urlpath}?token=${given_token_uri}">${file.filename}</a><BR>\n`
+            else {
+               if (decodeURI( file.urlpath ).match( /\.(mp3|wav|aac|ogg)$/i ))
+                  return `<div class="musicfile" onclick="play( '${file.urlpath}', '${given_token_uri}' )">${file.filename}</div>\n`
+               else if (decodeURI( file.urlpath ).match( /\.(jpg|bmp|png|txt|ini)$/i ))
+                  return `<a href="${file.urlpath}?token=${given_token_uri}">${file.filename}</a><BR>\n`
+               else
+                  return `<div>${file.filename}</div>\n`
+            }
          })
-         if (req_url != "/") {
-            let backurl = encodeURI( decodeURI( req_url ).replace(/[\/][^\/]+\/?$/, '/') );
+         if (req_path != "/" && req_path != "") {
+            let backurl = encodeURIComponent( req_path.replace(/[\/][^\/]+\/?$/, '') );
             console.log( ` - Back Link: ${backurl}` );
-            page.unshift( `<a href="${backurl}?token=${req.query.token}">..</a><BR>` )
+            page.unshift( `<a href="/${backurl}?token=${given_token_uri}">..</a><BR>` )
          } else {
             page.unshift( `[Root]<BR>` )
          }
-         res.send( page.join('')  );
+         let script = `
+         <style>
+            .musicfile {
+               cursor: pointer;
+               color: red;
+            }
+         </style>
+         <script>
+            // https://www.html5rocks.com/en/tutorials/webaudio/intro/
+            var context;
+            window.addEventListener('load', init, false);
+            function init() {
+               try {
+                  // Fix up for prefixing
+                  window.AudioContext = window.AudioContext||window.webkitAudioContext;
+                  context = new AudioContext();
+               }
+               catch(e) {
+                  alert('Web Audio API is not supported in this browser');
+               }
+            }
+            function loadSound(url, done) {
+               var request = new XMLHttpRequest();
+               request.open('GET', url, true);
+               request.responseType = 'arraybuffer';
+
+               // Decode asynchronously
+               request.onload = function() {
+                  context.decodeAudioData(request.response, function(buffer) {
+                     done( buffer );
+                  }, (err) => done( undefined, err ) );
+               }
+               request.send();
+            }
+            function playSound(buffer) {
+               var source = context.createBufferSource(); // creates a sound source
+               source.buffer = buffer;                    // tell the source which sound to play
+               source.connect(context.destination);       // connect the source to the context's destination (the speakers)
+               source.start(0);                           // play the source now
+                                                          // note: on older systems, may have to use deprecated noteOn(time);
+               return source;
+            }
+            let currentSource = undefined;
+            function play( file, token ) {
+               if (currentSource) {
+                  currentSource.stop();
+                  delete currentSource.buffer;
+                  delete currentSource;
+                  currentSource = undefined;
+               }
+               loadSound( file + "?token=" + token, (buffer,err) => {
+                  if (buffer)
+                     currentSource = playSound( buffer );
+                  else
+                     console.log( err, decodeURI( file ) );
+               });
+            }
+         </script>
+         `;
+         res.send( script + page.join('')  );
       } else {
          return res.sendFile( fullpath );
       }
@@ -73,7 +140,7 @@ app.get('/:path?',function(req,res){
 console.log( `Welcome` );
 console.log( `Serving: ${local_music_mount}` );
 console.log( `Token:   ${token}` );
-console.log( `URL:     /?token=${token}` );
+console.log( `URL:     http://<domain>:${config.port}/?token=${token}` );
 console.log( `Port:    ${config.port}` );
 
 app.listen(3000, () => console.log('MusicServer listening on port 3000!'))
