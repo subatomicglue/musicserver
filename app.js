@@ -101,7 +101,12 @@ app.get(`${root}:path?`, auth, function(req,res){
 
 
 app.get(`/*`, function(req,res){
+   if (req.query.token == undefined) {
+      return res.status(401).send(`401 access denied - no token`);
+   }
+   if (req.params[0] == '') req.params[0] = "index.html";
    let f = process.cwd() + `/site/` + req.params[0];
+   VERBOSE && console.log( `Requesting: ${f}` );
    if (exists( f ) && !isDir(f)) {
       console.log( `Sending ${f}` );
       return res.sendFile( f );
