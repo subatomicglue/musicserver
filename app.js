@@ -132,6 +132,8 @@ function renderListing( listing, token ) {
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
       <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+      <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet">
       <style>
          .musicfile {
             cursor: pointer;
@@ -160,10 +162,10 @@ function renderListing( listing, token ) {
          function playpause() {
             if (audio.paused) {
                audio.play();
-               playbox_playpause_button.innerHTML = "||";
+               playbox_playpause_button.innerHTML = "<i class='material-icons'>pause</i>";
             } else {
                audio.pause();
-               playbox_playpause_button.innerHTML = "&gt;";
+               playbox_playpause_button.innerHTML = "<i class='material-icons'>play_arrow</i>";
             }
          }
       </script>
@@ -171,7 +173,7 @@ function renderListing( listing, token ) {
       <body>
       <div id='playbox' hidden>
          <div id='playbox_title'></div>
-         <div id='playbox_playpause_button' class='btn' onclick='playpause();'>||</div>
+         <div id='playbox_playpause_button' class='btn' onclick='playpause();'><i class="material-icons">pause</i></div>
          <div id='playbox_time'>---</div>
       </div>
       <div class="list-group">
