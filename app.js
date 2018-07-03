@@ -16,13 +16,22 @@ function isFile( p ) {
 }
 function exists( p ){ return fs.existsSync( p ); }
 
+function auth(req,res,next) {
+   let given_token = req.query.token;
+   if (given_token != token) {
+      return res.status(401).send(`401 access denied`);
+   }
+   next();
+}
+
 //app.get('/', (req, res) => res.send('Hello World!'))
 
 const local_music_mount = config.local_music_mount;
 const token = config.token;
 const port = config.port;
+const root = '/start/';
 
-app.get('/:path?',function(req,res){
+app.get(`${root}:path?`, auth, function(req,res){
    let origin = url.parse(req.url).origin;
    let req_url = url.parse(req.url).pathname;
    let req_url_decode = decodeURI( req_url );
@@ -30,13 +39,8 @@ app.get('/:path?',function(req,res){
    if (req_path === undefined) req_path = '';
    console.log( `Requesting: ${req_path}` );
    console.log( ` - URL: ${req_url}` );
-   //let given_token = req.headers['Authorization'];
    let given_token = req.query.token;
    let given_token_uri = encodeURIComponent(given_token);
-
-   if (given_token != token) {
-      return res.status(401).send(`401 access denied`);
-   }
 
    let fullpath = path.join(local_music_mount, req_path);
    if (exists( fullpath )) {
@@ -64,7 +68,7 @@ app.get('/:path?',function(req,res){
          if (req_path != "/" && req_path != "") {
             let backurl = encodeURIComponent( req_path.replace(/[\/][^\/]+\/?$/, '') );
             console.log( ` - Back Link: ${backurl}` );
-            page.unshift( `<a href="/${backurl}?token=${given_token_uri}">..</a><BR>` )
+            page.unshift( `<a href="${root}${backurl}?token=${given_token_uri}">..</a><BR>` )
          } else {
             page.unshift( `[Root]<BR>` )
          }
@@ -136,11 +140,22 @@ app.get('/:path?',function(req,res){
 });
 
 
+app.get(`/*`,function(req,res){
+   let f = process.cwd() + `/site/` + req.params[0];
+   if (exists( f ) && !isDir(f)) {
+      console.log( `Sending ${f}` );
+      return res.sendFile( f );
+   } else {
+      console.log( `404 not found - '${f}'` );
+      return res.status(404).send(`404 not found - '${req.params[0]}'`);
+   }
+})
+
 
 console.log( `Welcome` );
 console.log( `Serving: ${local_music_mount}` );
 console.log( `Token:   ${token}` );
-console.log( `URL:     http://<domain>:${config.port}/?token=${token}` );
+console.log( `URL:     http://localhost:${config.port}/start/?token=${token}` );
 console.log( `Port:    ${config.port}` );
 
 app.listen(3000, () => console.log('MusicServer listening on port 3000!'))
