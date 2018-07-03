@@ -59,35 +59,36 @@ app.get(`${root}:path?`, auth, function(req,res){
                } );
             })
             // the listing
-            let page = folder.map( file => {
+            let listing = folder.map( file => {
                VERBOSE && console.log( excludeFolders.indexOf( file.filename ), file.filename, excludeFolders )
                if (isDir(file.fullpath) && excludeFolders.indexOf( file.filename ) > -1) {}
                else if (isDir(file.fullpath))
-                  return `<a href="${file.urlpath}?token=${given_token_uri}">${file.filename}</a><BR>\n`
+                  return {dir:true, url:file.urlpath, filename: file.filename };
                else {
                   if (decodeURI( file.urlpath ).match( /\.(mp3|wav|aac|ogg|mp4|webm)$/i ))
-                     return `<div class="musicfile" onclick="play( '${file.urlpath}', '${given_token_uri}' )">${file.filename}</div>\n`
+                     return {music:true, url:file.urlpath, filename: file.filename };
                   else if (decodeURI( file.urlpath ).match( /\.(jpg|bmp|png)$/i ))
-                     return `<a href="${file.urlpath}?token=${given_token_uri}">${file.filename}</a><BR>\n`
+                     return {image:true, url:file.urlpath, filename: file.filename };
                   //else
-                  //   return `<div>${file.filename}</div>\n`
+                  //   return {text:true, filename:file.filename};
                }
-            })
+            }).filter( file => file !== undefined );
             // add a back .. to top of listing
             if (req_path != "/" && req_path != "") {
                let backurl = encodeURIComponent( req_path.replace(/[\/][^\/]+\/?$/, '') );
                VERBOSE && console.log( ` - Back Link: ${backurl}` );
-               page.unshift( `<a href="${root}${backurl}?token=${given_token_uri}">..</a><BR>` )
+               listing.unshift( {dir:true, url: `${root}${backurl}`, filename: '..'}  );
             } else {
-               page.unshift( `[Root]<BR>` )
+               listing.unshift( {text:true, filename:`[Root]`} );
             }
-            return res.send( renderPage( page )  );
+            return res.send( renderListing( listing, given_token_uri )  );
          } else {
             return res.sendFile( fullpath );
          }
       } else
          return res.status(404).send(`404 not found - '${req.params.path}'`);
    } catch (err) {
+      console.error( err );
       return res.status(418).send(`418 you are a teapot - '${req.params.path}'`);
    }
 });
@@ -115,8 +116,16 @@ app.listen(3000, () => console.log('MusicServer listening on port 3000!'))
 
 
 
-function renderPage( listing ) {
-   let script = `
+function renderListing( listing, token ) {
+   //console.log(listing);
+  let script = `
+   <html>
+   <head>
+      <!-- https://getbootstrap.com/docs/4.0/getting-started/introduction/ -->
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
       <style>
          .musicfile {
             cursor: pointer;
@@ -124,57 +133,69 @@ function renderPage( listing ) {
          }
       </style>
       <script>
-      // https://www.html5rocks.com/en/tutorials/webaudio/intro/
-      var context;
-      window.addEventListener('load', init, false);
-      function init() {
-         try {
-                  // Fix up for prefixing
-                  window.AudioContext = window.AudioContext||window.webkitAudioContext;
-                  context = new AudioContext();
-               }
-               catch(e) {
-                  alert('Web Audio API is not supported in this browser');
-               }
+         // https://www.html5rocks.com/en/tutorials/webaudio/intro/
+         var context;
+         window.addEventListener('load', init, false);
+         function init() {
+            try {
+               // Fix up for prefixing
+               window.AudioContext = window.AudioContext||window.webkitAudioContext;
+               context = new AudioContext();
             }
-            function loadSound(url, done) {
-               var request = new XMLHttpRequest();
-               request.open('GET', url, true);
-               request.responseType = 'arraybuffer';
+            catch(e) {
+               alert('Web Audio API is not supported in this browser');
+            }
+         }
+         function loadSound(url, done) {
+            var request = new XMLHttpRequest();
+            request.open('GET', url, true);
+            request.responseType = 'arraybuffer';
 
-               // Decode asynchronously
-               request.onload = function() {
-                  context.decodeAudioData(request.response, function(buffer) {
-                     done( buffer );
-                  }, (err) => done( undefined, err ) );
-               }
-               request.send();
+            // Decode asynchronously
+            request.onload = function() {
+               context.decodeAudioData(request.response, function(buffer) {
+                  done( buffer );
+               }, (err) => done( undefined, err ) );
             }
-            function playSound(buffer) {
-               var source = context.createBufferSource(); // creates a sound source
-               source.buffer = buffer;                    // tell the source which sound to play
-               source.connect(context.destination);       // connect the source to the context's destination (the speakers)
-               source.start(0);                           // play the source now
-                                                          // note: on older systems, may have to use deprecated noteOn(time);
-               return source;
+            request.send();
+         }
+         function playSound(buffer) {
+            var source = context.createBufferSource(); // creates a sound source
+            source.buffer = buffer;                    // tell the source which sound to play
+            source.connect(context.destination);       // connect the source to the context's destination (the speakers)
+            source.start(0);                           // play the source now
+                                                         // note: on older systems, may have to use deprecated noteOn(time);
+            return source;
+         }
+         let currentSource = undefined;
+         function play( file, token ) {
+            if (currentSource) {
+               currentSource.stop();
+               delete currentSource.buffer;
+               delete currentSource;
+               currentSource = undefined;
             }
-            let currentSource = undefined;
-            function play( file, token ) {
-               if (currentSource) {
-                  currentSource.stop();
-                  delete currentSource.buffer;
-                  delete currentSource;
-                  currentSource = undefined;
-               }
-               loadSound( file + "?token=" + token, (buffer,err) => {
-                  if (buffer)
-                     currentSource = playSound( buffer );
-                  else
-                     console.log( err, decodeURI( file ) );
-               });
-            }
-         </script>
-         `;
-   return script + listing.join('');
+            loadSound( file + "?token=" + token, (buffer,err) => {
+               if (buffer)
+                  currentSource = playSound( buffer );
+               else
+                  console.log( err, decodeURI( file ) );
+            });
+         }
+      </script>
+      </head>
+      <body>
+      <div class="list-group">
+         ${listing.map( l => {
+            return l.dir ? `<a href="${l.url}?token=${token}" class="list-group-item list-group-item-action">${l.filename}</a>` :
+               l.music ? `<div onclick="play( '${l.url}', '${token}' )" class="list-group-item list-group-item-action btn text-danger">${l.filename}</div>` :
+               l.image ? `<a href="${l.url}?token=${token}" class="list-group-item list-group-item-action">${l.filename}</a>` :
+               l.text ? `<div class="list-group-item list-group-item-action">${l.filename}</div>` : ``;
+         }).join('')}
+         </div>
+      </body>
+      </html>
+      `;
+   return script;
 }
 
