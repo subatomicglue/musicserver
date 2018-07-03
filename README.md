@@ -42,6 +42,8 @@ Security is super primitive, consiting of a single accesstoken.  Change the toke
 
 ## TODO
 Lots!
-- make browser based HTML5 music player pretty (show song pointer, transport controlls, etc)
-- support "play all in directory"
+- (done) make browser based HTML5 music player pretty (show song pointer, transport play/pause controls, etc)
+- support concept of 'next track', 'prev track'
+- support "play all"
+- beautification... (prettier music player, float controls over page, show folder.jpg album art, etc)
 
