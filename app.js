@@ -33,9 +33,14 @@ const root = '/start/';
 const excludeFolders=[
   '.AppleDouble', '.AppleDB', '.AppleDesktop', 'Network Trash Folder', 'Temporary Items'
 ];
-const VERBOSE = false;
+const VERBOSE = true;
 
 app.get(`${root}:path?`, auth, function(req,res){
+   try {
+      isDir( local_music_mount );
+   } catch (err) {
+      return res.status(418).send( `418 music mount not mounted` );
+   }
    try {
       let origin = url.parse(req.url).origin;
       let req_url = url.parse(req.url).pathname;
@@ -60,7 +65,6 @@ app.get(`${root}:path?`, auth, function(req,res){
             })
             // the listing
             let listing = folder.map( file => {
-               VERBOSE && console.log( excludeFolders.indexOf( file.filename ), file.filename, excludeFolders )
                if (isDir(file.fullpath) && excludeFolders.indexOf( file.filename ) > -1) {}
                else if (isDir(file.fullpath))
                   return {dir:true, url:file.urlpath, filename: file.filename };
@@ -83,9 +87,11 @@ app.get(`${root}:path?`, auth, function(req,res){
             }
             return res.send( renderListing( listing, given_token_uri )  );
          } else {
+            VERBOSE && console.log( `Sending: ${fullpath}` );
             return res.sendFile( fullpath );
          }
       } else
+         VERBOSE && console.log( `404 not found - '${req.params.path}` );
          return res.status(404).send(`404 not found - '${req.params.path}'`);
    } catch (err) {
       console.error( err );
@@ -94,7 +100,7 @@ app.get(`${root}:path?`, auth, function(req,res){
 });
 
 
-app.get(`/*`, auth,function(req,res){
+app.get(`/*`, function(req,res){
    let f = process.cwd() + `/site/` + req.params[0];
    if (exists( f ) && !isDir(f)) {
       console.log( `Sending ${f}` );
@@ -133,58 +139,41 @@ function renderListing( listing, token ) {
          }
       </style>
       <script>
-         // https://www.html5rocks.com/en/tutorials/webaudio/intro/
-         var context;
-         window.addEventListener('load', init, false);
-         function init() {
-            try {
-               // Fix up for prefixing
-               window.AudioContext = window.AudioContext||window.webkitAudioContext;
-               context = new AudioContext();
-            }
-            catch(e) {
-               alert('Web Audio API is not supported in this browser');
-            }
-         }
-         function loadSound(url, done) {
-            var request = new XMLHttpRequest();
-            request.open('GET', url, true);
-            request.responseType = 'arraybuffer';
-
-            // Decode asynchronously
-            request.onload = function() {
-               context.decodeAudioData(request.response, function(buffer) {
-                  done( buffer );
-               }, (err) => done( undefined, err ) );
-            }
-            request.send();
-         }
-         function playSound(buffer) {
-            var source = context.createBufferSource(); // creates a sound source
-            source.buffer = buffer;                    // tell the source which sound to play
-            source.connect(context.destination);       // connect the source to the context's destination (the speakers)
-            source.start(0);                           // play the source now
-                                                         // note: on older systems, may have to use deprecated noteOn(time);
-            return source;
-         }
-         let currentSource = undefined;
+         let audio;
          function play( file, token ) {
-            if (currentSource) {
-               currentSource.stop();
-               delete currentSource.buffer;
-               delete currentSource;
-               currentSource = undefined;
+            if (audio != undefined) {
+               audio.pause();
+               delete audio;
             }
-            loadSound( file + "?token=" + token, (buffer,err) => {
-               if (buffer)
-                  currentSource = playSound( buffer );
-               else
-                  console.log( err, decodeURI( file ) );
-            });
+            audio = new Audio( file + "?token=" + token );
+            audio.onerror = function() {
+               audio.onerror = () => console.log( "already had an error " + audio.src )
+            };
+            audio.ontimeupdate = () => {
+               if (playbox) playbox_time.innerHTML = Math.floor(audio.currentTime/60) + 'min ' + Math.floor(audio.currentTime % 60) + 'sec';
+            }
+            audio.play();
+            if (playbox) playbox.hidden = false;
+            let title = decodeURIComponent( file ).replace( /^.+[/]/, '' );
+            if (playbox) playbox_title.innerHTML = title;
+         }
+         function playpause() {
+            if (audio.paused) {
+               audio.play();
+               playbox_playpause_button.innerHTML = "||";
+            } else {
+               audio.pause();
+               playbox_playpause_button.innerHTML = "&gt;";
+            }
          }
       </script>
       </head>
       <body>
+      <div id='playbox' hidden>
+         <div id='playbox_title'></div>
+         <div id='playbox_playpause_button' class='btn' onclick='playpause();'>||</div>
+         <div id='playbox_time'>---</div>
+      </div>
       <div class="list-group">
          ${listing.map( l => {
             return l.dir ? `<a href="${l.url}?token=${token}" class="list-group-item list-group-item-action">${l.filename}</a>` :
